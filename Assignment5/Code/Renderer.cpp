@@ -214,6 +214,7 @@ void Renderer::Render(const Scene& scene)
     std::vector<Vector3f> framebuffer(scene.width * scene.height);
 
     // h/depth(z)   h = height/2
+    // we often use the square, so the w = h
     float scale = std::tan(deg2rad(scene.fov * 0.5f));
     float imageAspectRatio = scene.width / (float)scene.height;
 
@@ -227,6 +228,8 @@ void Renderer::Render(const Scene& scene)
             // generate primary ray direction
             float x = (2*(i+0.5)/scene.width)-1;
             float y = (2*(j+0.5)/scene.height)-1;
+            // scale just like the zoom in/out 
+            // it decides the area you can see
             x = x * scale * imageAspectRatio;
             y = y * scale *(-1);
             // TODO: Find the x and y positions of the current pixel 
