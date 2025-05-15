@@ -49,45 +49,111 @@ BVHBuildNode* BVHAccel::recursiveBuild(std::vector<Object*> objects)
         return node;
     }
     else {
+
         Bounds3 centroidBounds;
         for (int i = 0; i < objects.size(); ++i)
             centroidBounds =
                 Union(centroidBounds, objects[i]->getBounds().Centroid());
         int dim = centroidBounds.maxExtent();
-        switch (dim) {
-        case 0:
-            std::sort(objects.begin(), objects.end(), [](auto f1, auto f2) {
-                return f1->getBounds().Centroid().x <
-                       f2->getBounds().Centroid().x;
-            });
-            break;
-        case 1:
-            std::sort(objects.begin(), objects.end(), [](auto f1, auto f2) {
-                return f1->getBounds().Centroid().y <
-                       f2->getBounds().Centroid().y;
-            });
-            break;
-        case 2:
-            std::sort(objects.begin(), objects.end(), [](auto f1, auto f2) {
-                return f1->getBounds().Centroid().z <
-                       f2->getBounds().Centroid().z;
-            });
-            break;
+
+        switch (splitMethod)
+        {
+            case(SplitMethod::NAIVE):{
+
+                switch (dim) {
+                case 0:
+                    std::sort(objects.begin(), objects.end(), [](auto f1, auto f2) {
+                        return f1->getBounds().Centroid().x <
+                               f2->getBounds().Centroid().x;
+                    });
+                    break;
+                case 1:
+                    std::sort(objects.begin(), objects.end(), [](auto f1, auto f2) {
+                        return f1->getBounds().Centroid().y <
+                               f2->getBounds().Centroid().y;
+                    });
+                    break;
+                case 2:
+                    std::sort(objects.begin(), objects.end(), [](auto f1, auto f2) {
+                        return f1->getBounds().Centroid().z <
+                               f2->getBounds().Centroid().z;
+                    });
+                    break;
+                }
+        
+                auto beginning = objects.begin();
+                auto middling = objects.begin() + (objects.size() / 2);
+                auto ending = objects.end();
+        
+                auto leftshapes = std::vector<Object*>(beginning, middling);
+                auto rightshapes = std::vector<Object*>(middling, ending);
+        
+                assert(objects.size() == (leftshapes.size() + rightshapes.size()));
+        
+                node->left = recursiveBuild(leftshapes);
+                node->right = recursiveBuild(rightshapes);
+        
+                node->bounds = Union(node->left->bounds, node->right->bounds);
+                break;
+            }
+            case(SplitMethod::SAH):{
+                float SN = centroidBounds.SurfaceArea();
+                int B = 10;
+                int minCostIndex = 0;
+                float minCost = std::numeric_limits<float>::infinity();
+                switch (dim) {
+                    case 0:
+                        std::sort(objects.begin(), objects.end(), [](auto f1, auto f2) {
+                            return f1->getBounds().Centroid().x <
+                                   f2->getBounds().Centroid().x;
+                        });
+                        break;
+                    case 1:
+                        std::sort(objects.begin(), objects.end(), [](auto f1, auto f2) {
+                            return f1->getBounds().Centroid().y <
+                                   f2->getBounds().Centroid().y;
+                        });
+                        break;
+                    case 2:
+                        std::sort(objects.begin(), objects.end(), [](auto f1, auto f2) {
+                            return f1->getBounds().Centroid().z <
+                                   f2->getBounds().Centroid().z;
+                        });
+                        break;
+                }
+                for(int i=0;i<B;i++){
+                    auto beginning = objects.begin();
+                    auto middleing = objects.begin() + (objects.size()*i/B);
+                    auto ending = objects.end();
+                    auto leftshapes = std::vector<Object *>(beginning,middleing);
+                    auto rightshapes = std::vector<Object *>(middleing,ending);
+                    Bounds3 leftBounds,rightBounds;
+                    for(int k=0;k<leftshapes.size();k++){
+                        leftBounds = Union(leftBounds,leftshapes[k]->getBounds().Centroid());
+                    }
+                    for(int k=0;k<rightshapes.size();k++){
+                        rightBounds = Union(rightBounds,rightshapes[k]->getBounds().Centroid());
+                    }
+                    float SA = leftBounds.SurfaceArea();
+                    float SB = rightBounds.SurfaceArea();
+                    float cost = 0.125 + (leftshapes.size()*SA + rightshapes.size()*SB)/SN;
+                    if(cost < minCost) {
+                        minCost = cost;
+                        minCostIndex = i;
+                    }
+                }
+                auto beginning = objects.begin();
+                auto middling = objects.begin() + (objects.size() * minCostIndex / B);//划分点选为当前最优桶的位置
+                auto ending = objects.end();
+                auto leftshapes = std::vector<Object*>(beginning, middling); //数组切分
+                auto rightshapes = std::vector<Object*>(middling, ending);
+                assert(objects.size() == (leftshapes.size() + rightshapes.size()));
+
+                node->left = recursiveBuild(leftshapes); //左右开始递归
+                node->right = recursiveBuild(rightshapes);
+                node->bounds = Union(node->left->bounds, node->right->bounds);//返回pMin pMax构成大包围盒
+            }
         }
-
-        auto beginning = objects.begin();
-        auto middling = objects.begin() + (objects.size() / 2);
-        auto ending = objects.end();
-
-        auto leftshapes = std::vector<Object*>(beginning, middling);
-        auto rightshapes = std::vector<Object*>(middling, ending);
-
-        assert(objects.size() == (leftshapes.size() + rightshapes.size()));
-
-        node->left = recursiveBuild(leftshapes);
-        node->right = recursiveBuild(rightshapes);
-
-        node->bounds = Union(node->left->bounds, node->right->bounds);
     }
     return node;
 }
