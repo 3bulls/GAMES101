@@ -89,6 +89,11 @@ inline Vector3f crossProduct(const Vector3f &a, const Vector3f &b)
     );
 }
 
+inline float distance2(const Vector3f &a,const Vector3f &b) {
+    Vector3f c = b-a;
+    return (c.x*c.x+c.y*c.y+c.z*c.z);
+}
+
 
 
 #endif //RAYTRACING_VECTOR_H
